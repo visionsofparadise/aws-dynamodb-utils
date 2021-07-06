@@ -1,14 +1,12 @@
-import { ValidateFunction } from 'ajv';
 import pick from 'lodash/pick';
 import { Database } from './Database';
 
 export type RequiredKeys<Data extends object, Keys extends keyof Data> = Pick<Data, Keys> & Partial<Omit<Data, Keys>>;
 export type OptionalKeys<Data extends object, Keys extends keyof Data> = Omit<Data, Keys> & Partial<Pick<Data, Keys>>;
-type StandaloneValidatorFunction<Data extends object> = ValidateFunction<Data>;
 
 export class Item<Schema extends object> {
 	protected _keys: Array<keyof Schema>;
-	protected _validator: StandaloneValidatorFunction<Schema>;
+	protected _validator: (Data: Schema) => boolean;
 	protected _db: Database;
 	protected _initial: Schema;
 	protected _current: Schema;
@@ -21,7 +19,7 @@ export class Item<Schema extends object> {
 		props: Schema,
 		config: {
 			keys: Array<keyof Schema>;
-			validator: StandaloneValidatorFunction<Schema>;
+			validator: (Data: Schema) => boolean;
 			db: Database;
 			onValidate?: () => Promise<any> | any;
 			onSave?: () => Promise<any> | any;
