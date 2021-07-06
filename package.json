@@ -1,0 +1,41 @@
+{
+	"name": "@xkore/aws-dynamodb-utils",
+	"version": "0.0.1",
+	"main": "./dist/index.js",
+	"scripts": {
+		"compile": "rmdir /s /q dist && tsc",
+		"test": "jest",
+		"patch": "npm version patch && npm publish",
+		"build": "npm run compile && npm run test && npm run patch"
+	},
+	"dependencies": {
+		"lodash": "^4.17.21"
+	},
+	"devDependencies": {
+		"@shelf/jest-dynamodb": "^1.8.1",
+		"@types/aws-lambda": "^8.10.77",
+		"@types/jest": "^24.9.1",
+		"@types/node": "^13.13.25",
+		"ajv": "^8.6.1",
+		"aws-lambda": "^1.0.6",
+		"aws-sdk": "^2.816.0",
+		"jest": "^27.0.6",
+		"nanoid": "^3.1.23",
+		"ts-jest": "^27.0.3",
+		"ts-node": "^8.5.4",
+		"tslint": "^5.20.1",
+		"tslint-config-prettier": "^1.18.0",
+		"tslint-plugin-prettier": "^2.1.0",
+		"typescript": "^4.3.5"
+	},
+	"author": "xKore",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/visionsofparadise/aws-dynamodb-utils.git"
+	},
+	"bugs": {
+		"url": "https://github.com/visionsofparadise/aws-dynamodb-utils/issues"
+	},
+	"homepage": "https://github.com/visionsofparadise/aws-dynamodb-utils#readme"
+}

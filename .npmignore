@@ -1,0 +1,8 @@
+.env*
+*.test.ts
+src
+node_modules
+.prettierrc
+jest.config.js
+tsconfig.json
+tslint.json
