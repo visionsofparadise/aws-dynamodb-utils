@@ -1,5 +1,6 @@
 import pick from 'lodash/pick';
 import { Database } from './Database';
+import { ILogger } from './ILogger';
 
 export type RequiredKeys<Data extends object, Keys extends keyof Data> = Pick<Data, Keys> & Partial<Omit<Data, Keys>>;
 export type OptionalKeys<Data extends object, Keys extends keyof Data> = Omit<Data, Keys> & Partial<Pick<Data, Keys>>;
@@ -8,6 +9,7 @@ export class Item<Schema extends object> {
 	protected _keys: Array<keyof Schema>;
 	protected _validator: (Data: Schema) => boolean;
 	protected _db: Database;
+	protected _logger?: ILogger;
 	protected _initial: Schema;
 	protected _current: Schema;
 	protected _onValidate: () => Promise<any> | any;
@@ -21,6 +23,7 @@ export class Item<Schema extends object> {
 			keys: Array<keyof Schema>;
 			validator: (Data: Schema) => boolean;
 			db: Database;
+			logger?: ILogger;
 			onValidate?: () => Promise<any> | any;
 			onSave?: () => Promise<any> | any;
 			onCreate?: () => Promise<any> | any;
@@ -33,6 +36,7 @@ export class Item<Schema extends object> {
 		this._keys = config.keys;
 		this._validator = config.validator;
 		this._db = config.db;
+		this._logger = config.logger;
 		this._onValidate = config.onValidate ? config.onValidate : () => null;
 		this._onSave = config.onSave ? config.onSave : () => null;
 		this._onCreate = config.onCreate ? config.onCreate : () => null;
@@ -45,6 +49,8 @@ export class Item<Schema extends object> {
 
 	public set(data: Partial<Schema>) {
 		this._current = { ...this._current, ...data };
+
+		if (this._logger) this._logger.info(this._current);
 
 		this.validate();
 

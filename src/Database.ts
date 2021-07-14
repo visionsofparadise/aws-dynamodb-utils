@@ -1,6 +1,7 @@
 import { DocumentClient } from 'aws-sdk/clients/dynamodb';
 import get from 'lodash/get';
 import pick from 'lodash/pick';
+import { ILogger } from './ILogger';
 
 type WithDefaults<I> = Omit<I, 'TableName'>;
 
@@ -12,6 +13,7 @@ export interface IItems<Item extends object> {
 export interface IDatabaseProps {
 	documentClient: DocumentClient;
 	tableName: string;
+	logger?: ILogger;
 }
 
 export class Database {
@@ -19,12 +21,14 @@ export class Database {
 	protected _queryDefaults: {
 		TableName: string;
 	};
+	protected _logger?: ILogger;
 
 	constructor(props: IDatabaseProps) {
 		this._documentClient = props.documentClient;
 		this._queryDefaults = {
 			TableName: props.tableName
 		};
+		this._logger = props.logger;
 	}
 
 	public get = async <Data extends object>(query: WithDefaults<DocumentClient.GetItemInput>) => {
@@ -33,6 +37,8 @@ export class Database {
 		if (!data || !data.Item || (typeof data === 'object' && Object.keys(data).length === 0)) {
 			throw new Error('Item Not Found');
 		}
+
+		if (this._logger) this._logger.info(data.Item);
 
 		return data.Item as Promise<Data>;
 	};
@@ -45,6 +51,8 @@ export class Database {
 			})
 			.promise()
 			.then(result => result.Attributes as Data);
+
+		if (this._logger) this._logger.info(data);
 
 		return data;
 	};
@@ -71,17 +79,25 @@ export class Database {
 			.promise()
 			.then(result => result.Attributes as Data);
 
+		if (this._logger) this._logger.info(data);
+
 		return data;
 	};
 
 	public query = async <Data extends object>(query: WithDefaults<DocumentClient.QueryInput>) => {
 		const data = (await this._documentClient.query({ ...this._queryDefaults, ...query }).promise()) as IItems<Data>;
 
+		if (this._logger) this._logger.info(data);
+
 		return data;
 	};
 
 	public scan = async <Data extends object>(query?: WithDefaults<DocumentClient.ScanInput>) => {
-		return this._documentClient.scan({ ...this._queryDefaults, ...query }).promise() as unknown as IItems<Data>;
+		const data = this._documentClient.scan({ ...this._queryDefaults, ...query }).promise() as unknown as IItems<Data>;
+
+		if (this._logger) this._logger.info(data);
+
+		return data;
 	};
 
 	public delete = async (query: WithDefaults<DocumentClient.DeleteItemInput>) => {
