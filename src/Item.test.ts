@@ -14,7 +14,9 @@ const documentClient = new AWS.DynamoDB.DocumentClient({
 
 const db = new Database({
 	documentClient,
-	tableName: 'test'
+	tableName: 'test',
+	keys: ['pk', 'sk'],
+	systemKey: 'isSystemItem'
 });
 
 interface ITestItem {
