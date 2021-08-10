@@ -93,7 +93,9 @@ export class Database {
 	};
 
 	public scan = async <Data extends object>(query?: WithDefaults<DocumentClient.ScanInput>) => {
-		const data = this._documentClient.scan({ ...this._queryDefaults, ...query }).promise() as unknown as IItems<Data>;
+		const data = (await this._documentClient
+			.scan({ ...this._queryDefaults, ...query })
+			.promise()) as unknown as IItems<Data>;
 
 		if (this._logger) this._logger.info(data);
 

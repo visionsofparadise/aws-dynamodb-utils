@@ -6,3 +6,4 @@ node_modules
 jest.config.js
 tsconfig.json
 tslint.json
+.vscode
