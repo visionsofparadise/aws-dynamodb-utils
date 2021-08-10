@@ -13,14 +13,19 @@ export interface IItems<Item extends object> {
 export interface IDatabaseProps {
 	documentClient: DocumentClient;
 	tableName: string;
+	keys: Array<string>;
+	systemKey?: string;
 	logger?: ILogger;
 }
 
 export class Database {
+	public keys: Array<string>;
+
 	protected _documentClient: DocumentClient;
 	protected _queryDefaults: {
 		TableName: string;
 	};
+	protected _systemKey?: string;
 	protected _logger?: ILogger;
 
 	constructor(props: IDatabaseProps) {
@@ -28,6 +33,8 @@ export class Database {
 		this._queryDefaults = {
 			TableName: props.tableName
 		};
+		this.keys = props.keys;
+		this._systemKey = props.systemKey;
 		this._logger = props.logger;
 	}
 
@@ -113,13 +120,13 @@ export class Database {
 			.promise();
 	};
 
-	public reset = async (keys: Array<string>, systemKey?: string) => {
+	public reset = async () => {
 		const scanData = await this.scan();
 
 		for (const data of scanData.Items!) {
-			if (!systemKey || !get(data, systemKey)) {
+			if (!this._systemKey || !get(data, this._systemKey)) {
 				await this.delete({
-					Key: pick(data, keys)
+					Key: pick(data, this.keys)
 				});
 			}
 		}

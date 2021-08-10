@@ -11,7 +11,9 @@ const documentClient = new AWS.DynamoDB.DocumentClient({
 
 const db = new Database({
 	documentClient,
-	tableName: 'test'
+	tableName: 'test',
+	keys: ['pk', 'sk'],
+	systemKey: 'isSystemItem'
 });
 
 const testData = () => ({
@@ -19,8 +21,6 @@ const testData = () => ({
 	sk: nanoid(),
 	testAttribute: 'test'
 });
-
-const keys = ['pk', 'sk'];
 
 it('gets item', async () => {
 	const input = testData();
@@ -33,7 +33,7 @@ it('gets item', async () => {
 		.promise();
 
 	const Item = await db.get<typeof input>({
-		Key: pick(input, keys)
+		Key: pick(input, db.keys)
 	});
 
 	expect(Item).toStrictEqual(input);
@@ -45,7 +45,7 @@ it('throws on item not found', async () => {
 
 	await db
 		.get<typeof input>({
-			Key: pick(input, keys)
+			Key: pick(input, db.keys)
 		})
 		.catch(err => expect(err).toBeDefined());
 });
@@ -53,14 +53,14 @@ it('throws on item not found', async () => {
 it('creates item', async () => {
 	const input = testData();
 
-	await db.create(pick(input, keys), {
+	await db.create(pick(input, db.keys), {
 		Item: input
 	});
 
 	const { Item } = (await documentClient
 		.get({
 			TableName: 'test',
-			Key: pick(input, keys)
+			Key: pick(input, db.keys)
 		})
 		.promise()) as unknown as { Item: typeof input };
 
@@ -70,12 +70,12 @@ it('creates item', async () => {
 it('throws if item exists on create', async () => {
 	const input = testData();
 
-	await db.create(pick(input, keys), {
+	await db.create(pick(input, db.keys), {
 		Item: input
 	});
 
 	await db
-		.create(pick(input, keys), {
+		.create(pick(input, db.keys), {
 			Item: input
 		})
 		.catch(error => expect(error).toBeDefined());
@@ -92,7 +92,7 @@ it('updates an attribute on an item', async () => {
 		.promise();
 
 	await db.update<typeof input>({
-		Key: pick(input, keys),
+		Key: pick(input, db.keys),
 		UpdateExpression: 'SET testAttribute = :testAttribute',
 		ExpressionAttributeValues: {
 			':testAttribute': 'updated'
@@ -102,7 +102,7 @@ it('updates an attribute on an item', async () => {
 	const { Item } = (await documentClient
 		.get({
 			TableName: 'test',
-			Key: pick(input, keys)
+			Key: pick(input, db.keys)
 		})
 		.promise()) as unknown as { Item: typeof input };
 
@@ -123,7 +123,7 @@ it('updates attributes on an item', async () => {
 		.promise();
 
 	await db.update<typeof input>({
-		Key: pick(input, keys),
+		Key: pick(input, db.keys),
 		UpdateExpression: 'SET testAttribute = :testAttribute, testAttribute2 = :testAttribute2',
 		ExpressionAttributeValues: {
 			':testAttribute': 'updated',
@@ -134,7 +134,7 @@ it('updates attributes on an item', async () => {
 	const { Item } = (await documentClient
 		.get({
 			TableName: 'test',
-			Key: pick(input, keys)
+			Key: pick(input, db.keys)
 		})
 		.promise()) as unknown as { Item: typeof input };
 
@@ -156,14 +156,14 @@ it('removes attributes off an item', async () => {
 		.promise();
 
 	await db.update<typeof input>({
-		Key: pick(input, keys),
+		Key: pick(input, db.keys),
 		UpdateExpression: 'REMOVE testAttribute, testAttribute2'
 	});
 
 	const { Item } = (await documentClient
 		.get({
 			TableName: 'test',
-			Key: pick(input, keys)
+			Key: pick(input, db.keys)
 		})
 		.promise()) as unknown as { Item: typeof input };
 
@@ -242,13 +242,13 @@ it('deletes item', async () => {
 		.promise();
 
 	await db.delete({
-		Key: pick(input, keys)
+		Key: pick(input, db.keys)
 	});
 
 	await documentClient
 		.get({
 			TableName: 'test',
-			Key: pick(input, keys)
+			Key: pick(input, db.keys)
 		})
 		.promise()
 		.catch(err => expect(err).toBeDefined());
@@ -259,7 +259,7 @@ it('throws on delete item not found', async () => {
 
 	await db
 		.delete({
-			Key: pick(input, keys)
+			Key: pick(input, db.keys)
 		})
 		.catch(err => expect(err).toBeDefined());
 });
@@ -269,7 +269,7 @@ it('resets and deletes all non system data', async () => {
 
 	expect(scan1.Items!.length).toBeGreaterThan(0);
 
-	await db.reset(keys);
+	await db.reset();
 
 	const scan2 = await db.scan();
 
@@ -289,7 +289,7 @@ it('resets and does not delete system data', async () => {
 		})
 		.promise();
 
-	await db.reset(keys, 'isSystemItem');
+	await db.reset();
 
 	const { Items } = await db.scan();
 
