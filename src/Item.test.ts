@@ -38,7 +38,7 @@ const schema: JSONSchemaType<ITestItem> = {
 
 const validator = ajv.compile<ITestItem>(schema);
 
-class TestItem extends Item<ITestItem> {
+class TestItem extends Item<ITestItem, 'pk' | 'sk'> {
 	constructor(props: Pick<ITestItem, 'testAttribute'>) {
 		super(
 			{
@@ -107,6 +107,25 @@ it('saves data to item', async () => {
 
 it('save fails if item doesnt exist', async () => {
 	await new TestItem({ testAttribute: nanoid() }).save().catch(err => expect(err).toBeDefined());
+});
+
+it('refreshes changed database data', async () => {
+	const testData = new TestItem({ testAttribute: nanoid() });
+
+	await documentClient
+		.update({
+			TableName: 'test',
+			Key: testData.key,
+			UpdateExpression: 'SET testAttribute = :testAttribute',
+			ExpressionAttributeValues: {
+				':testAttribute': 'changed'
+			}
+		})
+		.promise();
+
+	await testData.refresh();
+
+	expect(testData.data.testAttribute).toBe('changed');
 });
 
 it('deletes item', async () => {

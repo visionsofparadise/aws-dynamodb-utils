@@ -1,3 +1,4 @@
+import { ValidateFunction } from 'ajv';
 import pick from 'lodash/pick';
 import { Database } from './Database';
 import { ILogger } from './ILogger';
@@ -5,9 +6,9 @@ import { ILogger } from './ILogger';
 export type RequiredKeys<Data extends object, Keys extends keyof Data> = Pick<Data, Keys> & Partial<Omit<Data, Keys>>;
 export type OptionalKeys<Data extends object, Keys extends keyof Data> = Omit<Data, Keys> & Partial<Pick<Data, Keys>>;
 
-export class Item<Schema extends object> {
-	protected _keys: Array<keyof Schema>;
-	protected _validator: (Data: Schema) => boolean;
+export class Item<Schema extends object, PrimaryKey extends keyof Schema> {
+	protected _keys: Array<PrimaryKey>;
+	protected _validator: ValidateFunction<Schema>;
 	protected _db: Database;
 	protected _logger?: ILogger;
 	protected _initial: Schema;
@@ -20,8 +21,8 @@ export class Item<Schema extends object> {
 	constructor(
 		props: Schema,
 		config: {
-			keys: Array<keyof Schema>;
-			validator: (Data: Schema) => boolean;
+			keys: Array<PrimaryKey>;
+			validator: ValidateFunction<Schema>;
 			db: Database;
 			logger?: ILogger;
 			onValidate?: () => Promise<any> | any;
@@ -88,6 +89,14 @@ export class Item<Schema extends object> {
 		});
 
 		return this;
+	};
+
+	public refresh = async () => {
+		const newData = await this._db.get<Schema>({
+			Key: this.key
+		});
+
+		return this.set(newData);
 	};
 
 	public delete = async () => {
