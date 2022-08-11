@@ -1,4 +1,5 @@
 import { ValidateFunction } from 'ajv';
+import { get } from 'lodash';
 import pick from 'lodash/pick';
 import { Database } from './Database';
 import { ILogger } from './ILogger';
@@ -86,6 +87,31 @@ export class Item<Schema extends object, PrimaryKey extends keyof Schema> {
 
 		await this._db.create(this.key, {
 			Item: this._current
+		});
+
+		return this;
+	};
+
+	public update = async (data: Partial<Schema>) => {
+		this.set(data);
+
+		let untrimmedUpdateExpression = 'SET ';
+		let ExpressionAttributeValues = {};
+
+		for (const key of Object.keys(data)) {
+			untrimmedUpdateExpression += `${key} = :${key}, `;
+			ExpressionAttributeValues = {
+				...ExpressionAttributeValues,
+				[`:${key}`]: get(data, key)
+			};
+		}
+
+		const UpdateExpression = untrimmedUpdateExpression.slice(0, untrimmedUpdateExpression.length - 2);
+
+		await this._db.update<Schema>({
+			Key: this.key,
+			UpdateExpression,
+			ExpressionAttributeValues
 		});
 
 		return this;

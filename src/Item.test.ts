@@ -109,6 +109,22 @@ it('save fails if item doesnt exist', async () => {
 	await new TestItem({ testAttribute: nanoid() }).save().catch(err => expect(err).toBeDefined());
 });
 
+it('updates data on item and database', async () => {
+	const testData = new TestItem({ testAttribute: nanoid() });
+
+	await testData.update({
+		testAttribute: 'test'
+	});
+
+	expect(testData.data.testAttribute).toBe('test');
+
+	const getData = await db.get<typeof testData.data>({
+		Key: testData.key
+	});
+
+	expect(getData.testAttribute).toBe('test');
+});
+
 it('refreshes changed database data', async () => {
 	const testData = new TestItem({ testAttribute: nanoid() });
 
