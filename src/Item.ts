@@ -54,8 +54,6 @@ export class Item<Schema extends object, PrimaryKey extends keyof Schema> {
 
 		if (this._logger) this._logger.info(this._current);
 
-		this.validate();
-
 		return;
 	}
 
@@ -94,6 +92,8 @@ export class Item<Schema extends object, PrimaryKey extends keyof Schema> {
 
 	public update = async (data: Partial<Schema>) => {
 		this.set(data);
+
+		await this.validate();
 
 		let untrimmedUpdateExpression = 'SET ';
 		let ExpressionAttributeValues = {};
