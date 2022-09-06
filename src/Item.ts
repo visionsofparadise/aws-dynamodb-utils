@@ -1,43 +1,40 @@
-import { get } from 'lodash';
-import pick from 'lodash/pick';
+import { get as lodashGet, omit } from 'lodash';
 import { Database } from './Database';
 import { ILogger } from './ILogger';
 
-export type RequiredKeys<Data extends object, Keys extends keyof Data> = Pick<Data, Keys> & Partial<Omit<Data, Keys>>;
-export type OptionalKeys<Data extends object, Keys extends keyof Data> = Omit<Data, Keys> & Partial<Pick<Data, Keys>>;
-
-export interface IItemConfig<PrimaryKey, Schema> {
-	keys: Array<PrimaryKey>;
-	validator: (data: Schema) => boolean;
+export type RequiredProperties<Data extends object, Properties extends keyof Data> = Pick<Data, Properties> &
+	Partial<Omit<Data, Properties>>;
+export type OptionalProperties<Data extends object, Properties extends keyof Data> = Omit<Data, Properties> &
+	Partial<Pick<Data, Properties>>;
+export interface SelfItem<
+	Key extends object,
+	Properties extends object,
+	ConstructorProperties extends object | undefined
+> {
 	db: Database;
+	keyGen: {
+		[x in keyof Key]: (props: any) => Record<x, string>;
+	};
+	defaults: (props: ConstructorProperties) => Properties;
+	validator: (data: Properties) => boolean;
 	logger?: ILogger;
-	onValidate?: () => Promise<any> | any;
-	onSave?: () => Promise<any> | any;
-	onCreate?: () => Promise<any> | any;
-	onDelete?: () => Promise<any> | any;
 }
 
-export class Item<Schema extends object, PrimaryKey extends keyof Schema> {
-	protected _initial: Schema;
-	protected _current: Schema;
-	config: IItemConfig<PrimaryKey, Schema>;
+export class Item<Key extends object, Properties extends object, ConstructorProperties extends object | undefined> {
+	protected _initial: Properties;
+	protected _current: Properties;
+	protected _SelfItem: SelfItem<Key, Properties, ConstructorProperties>;
 
-	constructor(props: Schema, config: IItemConfig<PrimaryKey, Schema>) {
-		this._initial = props;
-		this._current = props;
-		this.config = config;
+	constructor(props: ConstructorProperties, SelfItem: SelfItem<Key, Properties, ConstructorProperties>) {
+		const defaults = SelfItem.defaults(props);
+
+		this._initial = defaults;
+		this._current = defaults;
+		this._SelfItem = SelfItem;
 	}
 
 	public get data() {
 		return this._current;
-	}
-
-	public set(data: Partial<Schema>) {
-		this._current = { ...this._current, ...data };
-
-		if (this.config.logger) this.config.logger.info(this._current);
-
-		return;
 	}
 
 	public get init() {
@@ -45,47 +42,67 @@ export class Item<Schema extends object, PrimaryKey extends keyof Schema> {
 	}
 
 	public get key() {
-		return pick(this._current, this.config.keys);
+		const keyEntries = Object.keys(this._SelfItem.keyGen).map(key => [
+			key as keyof Key,
+			this._SelfItem.keyGen[key as keyof Key](this._current)[key as keyof Key]
+		]);
+
+		return Object.fromEntries(keyEntries) as Record<keyof Key, string>;
 	}
 
-	public validate = async () => {
-		if (this.config.onValidate) await this.config.onValidate();
+	public onValidate = async () => {};
+	public onSet = async () => {};
+	public onWrite = async () => {};
+	public onCreate = async () => {};
+	public onDelete = async () => {};
 
-		const result = this.config.validator(this._current);
+	public set = async (data: Partial<Properties>) => {
+		await this.onSet();
+
+		this._current = { ...this._current, ...data };
+
+		if (this._SelfItem.logger) this._SelfItem.logger.info(this._current);
+
+		return;
+	};
+
+	public validate = async () => {
+		await this.onValidate();
+
+		const result = this._SelfItem.validator(this._current);
 
 		if (!result) throw new Error('Validation failed');
 
 		return result;
 	};
 
-	public save = async () => {
-		if (this.config.onSave) await this.config.onSave();
+	public write = async () => {
+		await this.onWrite();
 
 		await this.validate();
 
-		await this.config.db.put({
-			Item: this._current
+		await this._SelfItem.db.put({
+			Item: { ...this.key, ...this._current }
 		});
 
 		return this;
 	};
 
 	public create = async () => {
-		if (this.config.onSave) await this.config.onSave();
-		if (this.config.onCreate) await this.config.onCreate();
+		await this.onWrite();
+		await this.onCreate();
 
 		await this.validate();
 
-		await this.config.db.create(this.key, {
-			Item: this._current
+		await this._SelfItem.db.create(this.key, {
+			Item: { ...this.key, ...this._current }
 		});
 
 		return this;
 	};
 
-	public update = async (data: Partial<Schema>) => {
-		this.set(data);
-
+	public update = async (data: Partial<Properties>) => {
+		await this.set(data);
 		await this.validate();
 
 		let untrimmedUpdateExpression = 'SET ';
@@ -95,13 +112,13 @@ export class Item<Schema extends object, PrimaryKey extends keyof Schema> {
 			untrimmedUpdateExpression += `${key} = :${key}, `;
 			ExpressionAttributeValues = {
 				...ExpressionAttributeValues,
-				[`:${key}`]: get(data, key)
+				[`:${key}`]: lodashGet(data, key)
 			};
 		}
 
 		const UpdateExpression = untrimmedUpdateExpression.slice(0, untrimmedUpdateExpression.length - 2);
 
-		await this.config.db.update<Schema>({
+		await this._SelfItem.db.update<Properties>({
 			Key: this.key,
 			UpdateExpression,
 			ExpressionAttributeValues
@@ -111,17 +128,19 @@ export class Item<Schema extends object, PrimaryKey extends keyof Schema> {
 	};
 
 	public refresh = async () => {
-		const newData = await this.config.db.get<Schema>({
+		const newData = await this._SelfItem.db.get<Properties>({
 			Key: this.key
 		});
 
-		return this.set(newData);
+		const data = omit(newData, Object.keys(this._SelfItem.keyGen) as Array<keyof Key>);
+
+		return this.set(data);
 	};
 
 	public delete = async () => {
-		if (this.config.onDelete) await this.config.onDelete();
+		await this.onDelete();
 
-		await this.config.db.delete({
+		await this._SelfItem.db.delete({
 			Key: this.key
 		});
 

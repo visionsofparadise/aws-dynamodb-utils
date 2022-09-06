@@ -2,7 +2,7 @@ import AJV, { JSONSchemaType } from 'ajv';
 import AWS from 'aws-sdk';
 import { nanoid } from 'nanoid';
 import { Database } from './Database';
-import { Item } from './Item';
+import { Item, OptionalProperties } from './Item';
 
 const ajv = new AJV();
 
@@ -19,39 +19,37 @@ const db = new Database({
 	systemKey: 'isSystemItem'
 });
 
+interface IKey {
+	pk: string | number;
+	sk: string | number;
+}
+
 interface ITestItem {
-	pk: string;
-	sk: string;
 	testAttribute: string;
 }
 
 const schema: JSONSchemaType<ITestItem> = {
 	type: 'object',
 	properties: {
-		pk: { type: 'string' },
-		sk: { type: 'string' },
 		testAttribute: { type: 'string' }
 	},
-	required: ['pk', 'sk', 'testAttribute'],
+	required: ['testAttribute'],
 	additionalProperties: false
 } as any;
 
-const validator = ajv.compile<ITestItem>(schema);
+class TestItem extends Item<IKey, ITestItem, OptionalProperties<ITestItem, 'testAttribute'>> {
+	static db = db;
 
-class TestItem extends Item<ITestItem, 'pk' | 'sk'> {
-	constructor(props: Pick<ITestItem, 'testAttribute'>) {
-		super(
-			{
-				pk: nanoid(),
-				sk: nanoid(),
-				...props
-			},
-			{
-				keys: ['pk', 'sk'],
-				db,
-				validator
-			}
-		);
+	static keyGen = {
+		pk: () => ({ pk: 'TestItem' }),
+		sk: (props: Pick<ITestItem, 'testAttribute'>) => ({ sk: props.testAttribute })
+	};
+
+	static defaults = ({ testAttribute = nanoid() }) => ({ testAttribute });
+	static validator = ajv.compile<ITestItem>(schema);
+
+	constructor(props: OptionalProperties<ITestItem, 'testAttribute'>) {
+		super(props, TestItem);
 	}
 }
 
@@ -71,6 +69,16 @@ it('throws on invalid item', async () => {
 	await testData.validate().catch(err => expect(err).toBeDefined());
 });
 
+it('new item via defaults', async () => {
+	expect.assertions(1);
+
+	const testData = new TestItem({});
+
+	const result = await testData.validate();
+
+	expect(result).toBe(true);
+});
+
 it('creates item', async () => {
 	const testData = await new TestItem({ testAttribute: nanoid() }).create();
 
@@ -78,17 +86,17 @@ it('creates item', async () => {
 		Key: testData.key
 	});
 
-	expect(getData).toStrictEqual(testData.data);
+	expect(getData).toStrictEqual({ ...testData.key, ...testData.data });
 	expect(getData.testAttribute).toBe(testData.data.testAttribute);
 });
 
-it('saves data to item', async () => {
+it('writes data to item', async () => {
 	const testData = new TestItem({ testAttribute: nanoid() });
 
 	await documentClient
 		.put({
 			TableName: 'test',
-			Item: testData.data
+			Item: { ...testData.key, ...testData.data }
 		})
 		.promise();
 
@@ -96,7 +104,7 @@ it('saves data to item', async () => {
 		testAttribute: 'updated'
 	});
 
-	await testData.save();
+	await testData.write();
 
 	const getData = await db.get<typeof testData.data>({
 		Key: testData.key
@@ -105,8 +113,8 @@ it('saves data to item', async () => {
 	expect(getData.testAttribute).toBe('updated');
 });
 
-it('save fails if item doesnt exist', async () => {
-	await new TestItem({ testAttribute: nanoid() }).save().catch(err => expect(err).toBeDefined());
+it('write fails if item doesnt exist', async () => {
+	await new TestItem({ testAttribute: nanoid() }).write().catch(err => expect(err).toBeDefined());
 });
 
 it('updates data on item and database', async () => {
@@ -150,7 +158,7 @@ it('deletes item', async () => {
 	await documentClient
 		.put({
 			TableName: 'test',
-			Item: testData.data
+			Item: { ...testData.key, ...testData.data }
 		})
 		.promise();
 

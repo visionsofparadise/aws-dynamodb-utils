@@ -10,7 +10,7 @@ export interface IItems<Item extends object> {
 	LastEvaluatedKey?: DocumentClient.Key;
 }
 
-export interface IDatabaseProps {
+export interface IDatabaseConfiguration {
 	documentClient: DocumentClient;
 	tableName: string;
 	keys: Array<string>;
@@ -28,7 +28,7 @@ export class Database {
 	protected _systemKey?: string;
 	protected _logger?: ILogger;
 
-	constructor(props: IDatabaseProps) {
+	constructor(props: IDatabaseConfiguration) {
 		this._documentClient = props.documentClient;
 		this._queryDefaults = {
 			TableName: props.tableName

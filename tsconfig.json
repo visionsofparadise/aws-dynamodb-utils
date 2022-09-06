@@ -2,7 +2,7 @@
 	"compilerOptions": {
 		"module": "commonjs",
 		"target": "ES2018",
-		"lib": ["ES2018"],
+		"lib": ["ES2019"],
 		"strict": true,
 		"declaration": true,
 		"moduleResolution": "node",
