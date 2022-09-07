@@ -45,9 +45,8 @@ export class Item<Key extends object, Properties extends object> {
 		return this._initial;
 	}
 
-	public withKeys = <InputProperties extends Properties>(props: InputProperties) => ({ ...props, ...this.key });
-	public withoutKeys = <InputProperties extends Properties>(props: Partial<InputProperties>) =>
-		omit(props, Object.keys(this._SelfItem.keyGen));
+	public withKeys = (props: any) => ({ ...props, ...this.key });
+	public withoutKeys = (props: any) => omit(props, Object.keys(this._SelfItem.keyGen));
 
 	public onValidate = async () => {};
 	public onSet = async () => {};
