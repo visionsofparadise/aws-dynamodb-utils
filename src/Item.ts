@@ -6,39 +6,26 @@ export type RequiredProperties<Data extends object, Properties extends keyof Dat
 	Partial<Omit<Data, Properties>>;
 export type OptionalProperties<Data extends object, Properties extends keyof Data> = Omit<Data, Properties> &
 	Partial<Pick<Data, Properties>>;
-export interface SelfItem<
-	Key extends object,
-	Properties extends object,
-	ConstructorProperties extends object | undefined
-> {
+export interface SelfItem<Key extends object, Properties extends object> {
 	db: Database;
+	logger?: ILogger;
+
 	keyGen: {
 		[x in keyof Key]: (props: any) => Record<x, string>;
 	};
-	defaults: (props: ConstructorProperties) => Properties;
-	validator: (data: Properties) => boolean;
-	logger?: ILogger;
+
+	validator: (props: Properties) => boolean;
 }
 
-export class Item<Key extends object, Properties extends object, ConstructorProperties extends object | undefined> {
+export class Item<Key extends object, Properties extends object> {
 	protected _initial: Properties;
 	protected _current: Properties;
-	protected _SelfItem: SelfItem<Key, Properties, ConstructorProperties>;
+	protected _SelfItem: SelfItem<Key, Properties>;
 
-	constructor(props: ConstructorProperties, SelfItem: SelfItem<Key, Properties, ConstructorProperties>) {
-		const defaults = SelfItem.defaults(props);
-
-		this._initial = defaults;
-		this._current = defaults;
+	constructor(props: Properties, SelfItem: SelfItem<Key, Properties>) {
+		this._initial = props;
+		this._current = props;
 		this._SelfItem = SelfItem;
-	}
-
-	public get data() {
-		return this._current;
-	}
-
-	public get init() {
-		return this._initial;
 	}
 
 	public get key() {
@@ -48,6 +35,14 @@ export class Item<Key extends object, Properties extends object, ConstructorProp
 		]);
 
 		return Object.fromEntries(keyEntries) as Record<keyof Key, string>;
+	}
+
+	public get data() {
+		return this._current;
+	}
+
+	public get init() {
+		return this._initial;
 	}
 
 	public onValidate = async () => {};

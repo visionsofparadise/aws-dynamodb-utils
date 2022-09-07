@@ -3,7 +3,7 @@ import AWS from 'aws-sdk';
 import { nanoid } from 'nanoid';
 import { Database } from './Database';
 import { Item, OptionalProperties } from './Item';
-import { getters } from './getters';
+import { get } from './get';
 
 const ajv = new AJV();
 
@@ -38,7 +38,7 @@ const schema: JSONSchemaType<ITestItem> = {
 	additionalProperties: false
 } as any;
 
-class TestItem extends Item<IKey, ITestItem, OptionalProperties<ITestItem, 'testAttribute'>> {
+class TestItem extends Item<IKey, ITestItem> {
 	static db = db;
 
 	static keyGen = {
@@ -46,25 +46,19 @@ class TestItem extends Item<IKey, ITestItem, OptionalProperties<ITestItem, 'test
 		sk: (props: Pick<ITestItem, 'testAttribute'>) => ({ sk: props.testAttribute })
 	};
 
-	static defaults = ({ testAttribute = nanoid() }) => ({ testAttribute });
 	static validator = ajv.compile(schema);
 
-	public static getters = getters(TestItem);
+	public static get = get(TestItem, TestItem.keyGen.pk, TestItem.keyGen.sk);
 
-	static key = TestItem.getters.key(TestItem.keyGen.pk, TestItem.keyGen.sk);
-	static get = TestItem.getters.get(TestItem.key);
-	static list = TestItem.getters.list(TestItem.keyGen.pk);
-	static listAll = TestItem.getters.listAll(TestItem.keyGen.pk);
-
-	constructor(props: OptionalProperties<ITestItem, 'testAttribute'>) {
-		super(props, TestItem);
+	constructor({ testAttribute = nanoid() }: OptionalProperties<ITestItem, 'testAttribute'>) {
+		super({ testAttribute }, TestItem);
 	}
 }
 
 it('generates key for item', () => {
 	const testItem = new TestItem({ testAttribute: nanoid() });
 
-	const key = TestItem.key(testItem.data);
+	const key = TestItem.get.keyOf(testItem.data);
 
 	expect(key).toStrictEqual({ pk: 'TestItem', sk: testItem.data.testAttribute });
 });
@@ -88,7 +82,7 @@ it('lists items', async () => {
 
 	const testItemIds = testItems.map(testItem => testItem.data.testAttribute);
 
-	const itemList = await TestItem.list({});
+	const itemList = await TestItem.get.some({});
 
 	for (const testItem of itemList.items) {
 		expect(testItemIds.includes(testItem.data.testAttribute));
@@ -102,7 +96,7 @@ it('lists all items', async () => {
 		await new TestItem({}).create();
 	}
 
-	const itemList = await TestItem.listAll({ limit: 10 });
+	const itemList = await TestItem.get.all({ limit: 10 });
 
 	expect(itemList.items.length).toBeGreaterThan(10);
 });

@@ -37,7 +37,7 @@ const schema: JSONSchemaType<ITestItem> = {
 	additionalProperties: false
 } as any;
 
-class TestItem extends Item<IKey, ITestItem, OptionalProperties<ITestItem, 'testAttribute'>> {
+class TestItem extends Item<IKey, ITestItem> {
 	static db = db;
 
 	static keyGen = {
@@ -45,11 +45,10 @@ class TestItem extends Item<IKey, ITestItem, OptionalProperties<ITestItem, 'test
 		sk: (props: Pick<ITestItem, 'testAttribute'>) => ({ sk: props.testAttribute })
 	};
 
-	static defaults = ({ testAttribute = nanoid() }) => ({ testAttribute });
 	static validator = ajv.compile<ITestItem>(schema);
 
-	constructor(props: OptionalProperties<ITestItem, 'testAttribute'>) {
-		super(props, TestItem);
+	constructor({ testAttribute = nanoid() }: OptionalProperties<ITestItem, 'testAttribute'>) {
+		super({ testAttribute }, TestItem);
 	}
 }
 
