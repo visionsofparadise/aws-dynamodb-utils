@@ -1,4 +1,4 @@
-import { get as lodashGet, omit } from 'lodash';
+import { get } from 'lodash';
 import { Database } from './Database';
 import { ILogger } from './ILogger';
 
@@ -113,7 +113,7 @@ export class Item<Key extends object, Properties extends object> {
 			untrimmedUpdateExpression += `${key} = :${key}, `;
 			ExpressionAttributeValues = {
 				...ExpressionAttributeValues,
-				[`:${key}`]: lodashGet(data, key)
+				[`:${key}`]: get(data, key)
 			};
 		}
 
