@@ -15,6 +15,8 @@ export interface SelfItem<Key extends object, Properties extends object> {
 	};
 
 	validator: (props: Properties) => boolean;
+
+	new (...params: any): any;
 }
 
 export class Item<Key extends object, Properties extends object> {
@@ -37,6 +39,10 @@ export class Item<Key extends object, Properties extends object> {
 		return Object.fromEntries(keyEntries) as Record<keyof Key, string>;
 	}
 
+	public get keys() {
+		return this.key;
+	}
+
 	public get data() {
 		return this._current;
 	}
@@ -44,9 +50,6 @@ export class Item<Key extends object, Properties extends object> {
 	public get init() {
 		return this._initial;
 	}
-
-	public withKeys = (props: Properties) => ({ ...props, ...this.key });
-	public withoutKeys = (props: Partial<Properties & Key>) => omit(props, Object.keys(this._SelfItem.keyGen));
 
 	public onValidate = async () => {};
 	public onSet = async () => {};
@@ -80,7 +83,7 @@ export class Item<Key extends object, Properties extends object> {
 		await this.validate();
 
 		await this._SelfItem.db.put({
-			Item: this.withKeys(this._current)
+			Item: { ...this._current, ...this.keys }
 		});
 
 		return this;
@@ -93,7 +96,7 @@ export class Item<Key extends object, Properties extends object> {
 		await this.validate();
 
 		await this._SelfItem.db.create(this.key, {
-			Item: this.withKeys(this._current)
+			Item: { ...this._current, ...this.keys }
 		});
 
 		return this;
@@ -123,16 +126,6 @@ export class Item<Key extends object, Properties extends object> {
 		});
 
 		return this;
-	};
-
-	public refresh = async () => {
-		const newData = await this._SelfItem.db.get<Properties & any>({
-			Key: this.key
-		});
-
-		const props = this.withoutKeys(newData);
-
-		return this.set(props);
 	};
 
 	public delete = async () => {

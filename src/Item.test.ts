@@ -132,25 +132,6 @@ it('updates data on item and database', async () => {
 	expect(getData.testAttribute).toBe('test');
 });
 
-it('refreshes changed database data', async () => {
-	const testData = new TestItem({ testAttribute: nanoid() });
-
-	await documentClient
-		.update({
-			TableName: 'test',
-			Key: testData.key,
-			UpdateExpression: 'SET testAttribute = :testAttribute',
-			ExpressionAttributeValues: {
-				':testAttribute': 'changed'
-			}
-		})
-		.promise();
-
-	await testData.refresh();
-
-	expect(testData.data.testAttribute).toBe('changed');
-});
-
 it('deletes item', async () => {
 	const testData = new TestItem({ testAttribute: nanoid() });
 
