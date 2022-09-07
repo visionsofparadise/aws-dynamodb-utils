@@ -45,8 +45,8 @@ export class Item<Key extends object, Properties extends object> {
 		return this._initial;
 	}
 
-	public withKeys = (props: any) => ({ ...props, ...this.key });
-	public withoutKeys = (props: any) => omit(props, Object.keys(this._SelfItem.keyGen));
+	public withKeys = (props: Properties) => ({ ...props, ...this.key });
+	public withoutKeys = (props: Partial<Properties & Key>) => omit(props, Object.keys(this._SelfItem.keyGen));
 
 	public onValidate = async () => {};
 	public onSet = async () => {};
@@ -126,7 +126,7 @@ export class Item<Key extends object, Properties extends object> {
 	};
 
 	public refresh = async () => {
-		const newData = await this._SelfItem.db.get<Properties>({
+		const newData = await this._SelfItem.db.get<Properties & any>({
 			Key: this.key
 		});
 
