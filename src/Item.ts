@@ -45,6 +45,10 @@ export class Item<Key extends object, Properties extends object> {
 		return this._initial;
 	}
 
+	public withKeys = <InputProperties extends Properties>(props: InputProperties) => ({ ...props, ...this.key });
+	public withoutKeys = <InputProperties extends Properties>(props: Partial<InputProperties>) =>
+		omit(props, Object.keys(this._SelfItem.keyGen));
+
 	public onValidate = async () => {};
 	public onSet = async () => {};
 	public onWrite = async () => {};
@@ -77,7 +81,7 @@ export class Item<Key extends object, Properties extends object> {
 		await this.validate();
 
 		await this._SelfItem.db.put({
-			Item: { ...this.key, ...this._current }
+			Item: this.withKeys(this._current)
 		});
 
 		return this;
@@ -90,7 +94,7 @@ export class Item<Key extends object, Properties extends object> {
 		await this.validate();
 
 		await this._SelfItem.db.create(this.key, {
-			Item: { ...this.key, ...this._current }
+			Item: this.withKeys(this._current)
 		});
 
 		return this;
@@ -127,9 +131,9 @@ export class Item<Key extends object, Properties extends object> {
 			Key: this.key
 		});
 
-		const data = omit(newData, Object.keys(this._SelfItem.keyGen) as Array<keyof Key>);
+		const props = this.withoutKeys(newData);
 
-		return this.set(data);
+		return this.set(props);
 	};
 
 	public delete = async () => {
