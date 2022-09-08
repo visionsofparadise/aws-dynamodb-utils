@@ -1,10 +1,7 @@
-import AJV, { JSONSchemaType } from 'ajv';
 import AWS from 'aws-sdk';
 import { nanoid } from 'nanoid';
 import { Database } from './Database';
 import { Item, OptionalProperties } from './Item';
-
-const ajv = new AJV();
 
 const documentClient = new AWS.DynamoDB.DocumentClient({
 	endpoint: 'localhost:8000',
@@ -28,15 +25,6 @@ interface ITestItem {
 	testAttribute: string;
 }
 
-const schema: JSONSchemaType<ITestItem> = {
-	type: 'object',
-	properties: {
-		testAttribute: { type: 'string' }
-	},
-	required: ['testAttribute'],
-	additionalProperties: false
-} as any;
-
 class TestItem extends Item<IKey, ITestItem> {
 	static db = db;
 
@@ -45,108 +33,88 @@ class TestItem extends Item<IKey, ITestItem> {
 		sk: (props: Pick<ITestItem, 'testAttribute'>) => ({ sk: props.testAttribute })
 	};
 
-	static validator = ajv.compile<ITestItem>(schema);
-
 	constructor({ testAttribute = nanoid() }: OptionalProperties<ITestItem, 'testAttribute'>) {
 		super({ testAttribute }, TestItem);
 	}
 }
 
-it('validates item', async () => {
-	const testData = new TestItem({ testAttribute: nanoid() });
-
-	const result = await testData.validate();
-
-	expect(result).toBe(true);
-});
-
-it('throws on invalid item', async () => {
-	expect.assertions(1);
-
-	const testData = new TestItem({ testAttribute: 123 as unknown as string });
-
-	await testData.validate().catch(err => expect(err).toBeDefined());
-});
-
 it('new item via defaults', async () => {
 	expect.assertions(1);
 
-	const testData = new TestItem({});
+	const testItem = new TestItem({});
 
-	const result = await testData.validate();
-
-	expect(result).toBe(true);
+	expect(testItem.props.testAttribute).toBeDefined();
 });
 
 it('creates item', async () => {
-	const testData = await new TestItem({ testAttribute: nanoid() }).create();
+	const testItem = await new TestItem({ testAttribute: nanoid() }).create();
 
-	const getData = await db.get<ITestItem>({
-		Key: testData.key
+	const getTestItem = await db.get<ITestItem>({
+		Key: testItem.key
 	});
 
-	expect(getData).toStrictEqual({ ...testData.key, ...testData.data });
-	expect(getData.testAttribute).toBe(testData.data.testAttribute);
+	expect(getTestItem).toStrictEqual({ ...testItem.key, ...testItem.props });
+	expect(getTestItem.testAttribute).toBe(testItem.props.testAttribute);
 });
 
-it('writes data to item', async () => {
-	const testData = new TestItem({ testAttribute: nanoid() });
+it('writes new props to database', async () => {
+	const testItem = new TestItem({ testAttribute: nanoid() });
 
 	await documentClient
 		.put({
 			TableName: 'test',
-			Item: { ...testData.key, ...testData.data }
+			Item: { ...testItem.key, ...testItem.props }
 		})
 		.promise();
 
-	testData.set({
+	testItem.set({
 		testAttribute: 'updated'
 	});
 
-	await testData.write();
+	await testItem.write();
 
-	const getData = await db.get<typeof testData.data>({
-		Key: testData.key
+	const getTestItem = await db.get<typeof testItem.props>({
+		Key: testItem.key
 	});
 
-	expect(getData.testAttribute).toBe('updated');
+	expect(getTestItem.testAttribute).toBe('updated');
 });
 
 it('write fails if item doesnt exist', async () => {
 	await new TestItem({ testAttribute: nanoid() }).write().catch(err => expect(err).toBeDefined());
 });
 
-it('updates data on item and database', async () => {
-	const testData = new TestItem({ testAttribute: nanoid() });
+it('updates props on item and database', async () => {
+	const testItem = new TestItem({ testAttribute: nanoid() });
 
-	await testData.update({
+	await testItem.update({
 		testAttribute: 'test'
 	});
 
-	expect(testData.data.testAttribute).toBe('test');
+	expect(testItem.props.testAttribute).toBe('test');
 
-	const getData = await db.get<typeof testData.data>({
-		Key: testData.key
+	const getTestItem = await db.get<typeof testItem.props>({
+		Key: testItem.key
 	});
 
-	expect(getData.testAttribute).toBe('test');
+	expect(getTestItem.testAttribute).toBe('test');
 });
 
 it('deletes item', async () => {
-	const testData = new TestItem({ testAttribute: nanoid() });
+	const testItem = new TestItem({ testAttribute: nanoid() });
 
 	await documentClient
 		.put({
 			TableName: 'test',
-			Item: { ...testData.key, ...testData.data }
+			Item: { ...testItem.key, ...testItem.props }
 		})
 		.promise();
 
-	await testData.delete();
+	await testItem.delete();
 
 	await db
 		.get({
-			Key: testData.key
+			Key: testItem.key
 		})
 		.catch(err => expect(err).toBeDefined());
 });

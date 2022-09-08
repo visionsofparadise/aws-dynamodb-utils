@@ -58,17 +58,17 @@ class TestItem extends Item<IKey, ITestItem> {
 it('generates key for item', () => {
 	const testItem = new TestItem({ testAttribute: nanoid() });
 
-	const key = TestItem.get.keyOf(testItem.data);
+	const key = TestItem.get.keyOf(testItem.props);
 
-	expect(key).toStrictEqual({ pk: 'TestItem', sk: testItem.data.testAttribute });
+	expect(key).toStrictEqual({ pk: 'TestItem', sk: testItem.props.testAttribute });
 });
 
 it('gets item', async () => {
 	const testItem = await new TestItem({ testAttribute: nanoid() }).create();
 
-	const getTestItem = await TestItem.get(testItem.data);
+	const getTestItem = await TestItem.get(testItem.props);
 
-	expect(getTestItem.data.testAttribute).toBe(testItem.data.testAttribute);
+	expect(getTestItem.props.testAttribute).toBe(testItem.props.testAttribute);
 });
 
 it('lists items', async () => {
@@ -80,12 +80,12 @@ it('lists items', async () => {
 		testItems.push(testItem);
 	}
 
-	const testItemIds = testItems.map(testItem => testItem.data.testAttribute);
+	const testItemIds = testItems.map(testItem => testItem.props.testAttribute);
 
 	const itemList = await TestItem.get.some({});
 
 	for (const testItem of itemList.items) {
-		expect(testItemIds.includes(testItem.data.testAttribute));
+		expect(testItemIds.includes(testItem.props.testAttribute));
 	}
 });
 
