@@ -18,8 +18,8 @@ export interface SelfItem<Key extends object> {
 }
 
 export class Item<Key extends object, Properties extends object> {
-	private readonly _initial: Properties;
-	private _current: Properties;
+	protected readonly _initial: Properties;
+	protected _current: Properties;
 	public readonly Item: SelfItem<Key>;
 
 	constructor(props: Properties, Item: SelfItem<Key>) {
