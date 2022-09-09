@@ -82,11 +82,23 @@ it('lists items', async () => {
 
 	const testItemIds = testItems.map(testItem => testItem.props.testAttribute);
 
-	const itemList = await TestItem.get.some({});
+	const getTestItems = await TestItem.get.some({});
 
-	for (const testItem of itemList.items) {
+	for (const testItem of getTestItems) {
 		expect(testItemIds.includes(testItem.props.testAttribute));
 	}
+});
+
+it('lists range of items', async () => {
+	expect.assertions(1);
+
+	for (let i = 0; i < 10; i++) {
+		await new TestItem({ testAttribute: `000${i}-${nanoid()}` }).create();
+	}
+
+	const testItems = await TestItem.get.allRange({ min: { testAttribute: '0002' }, max: { testAttribute: '0007' } });
+
+	expect(testItems.length).toBe(5);
 });
 
 it('lists all items', async () => {
@@ -96,7 +108,7 @@ it('lists all items', async () => {
 		await new TestItem({}).create();
 	}
 
-	const itemList = await TestItem.get.all({ limit: 10 });
+	const testItems = await TestItem.get.all({ limit: 10 });
 
-	expect(itemList.items.length).toBeGreaterThan(10);
+	expect(testItems.length).toBeGreaterThan(10);
 });
