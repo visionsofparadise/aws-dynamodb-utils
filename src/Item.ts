@@ -10,8 +10,8 @@ export interface SelfItem<Key extends object> {
 	db: Database;
 	logger?: ILogger;
 
-	keyGen: {
-		[x in keyof Key]: (props: any) => Record<x, string>;
+	key: {
+		[x in keyof Key]: (props: any) => Record<x, Key[x]>;
 	};
 
 	new (...params: any): any;
@@ -31,9 +31,9 @@ export class Item<Key extends object, Properties extends object> {
 	}
 
 	public get key() {
-		const keyEntries = Object.keys(this.Item.keyGen).map(key => [
+		const keyEntries = Object.keys(this.Item.key).map(key => [
 			key as keyof Key,
-			this.Item.keyGen[key as keyof Key](this._current)[key as keyof Key]
+			this.Item.key[key as keyof Key](this._current)[key as keyof Key]
 		]);
 
 		return Object.fromEntries(keyEntries) as Record<keyof Key, string>;

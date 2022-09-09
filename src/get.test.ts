@@ -41,14 +41,14 @@ const schema: JSONSchemaType<ITestItem> = {
 class TestItem extends Item<IKey, ITestItem> {
 	static db = db;
 
-	static keyGen = {
+	static key = {
 		pk: () => ({ pk: 'TestItem' }),
 		sk: (props: Pick<ITestItem, 'testAttribute'>) => ({ sk: props.testAttribute })
 	};
 
 	static validator = ajv.compile(schema);
 
-	public static get = get(TestItem, TestItem.keyGen.pk, TestItem.keyGen.sk);
+	public static get = get(TestItem, TestItem.key.pk, TestItem.key.sk);
 
 	constructor({ testAttribute = nanoid() }: OptionalProperties<ITestItem, 'testAttribute'>) {
 		super({ testAttribute }, TestItem);

@@ -13,9 +13,9 @@ export interface ItemListQuery {
 	cursor?: Key;
 }
 
-export interface ItemListRangeQuery<SortKeyProperties> {
-	min: SortKeyProperties;
-	max: SortKeyProperties;
+export interface ItemListRangeQuery<SKProperties> {
+	min: SKProperties;
+	max: SKProperties;
 }
 
 export type ItemList<Item> = Array<Item> & {
@@ -24,25 +24,25 @@ export type ItemList<Item> = Array<Item> & {
 
 export const get = <
 	Item extends GetItem,
-	PartitionKeyGenProperties,
-	SortKeyGenProperties,
-	PartitionKey extends { [x: string]: string },
-	SortKey extends { [x: string]: string }
+	PKFunctionProperties,
+	SKFunctionProperties,
+	PK extends { [x: string]: string },
+	SK extends { [x: string]: string }
 >(
 	Item: Item,
-	partitionKeyGen: (params: PartitionKeyGenProperties) => PartitionKey,
-	sortKeyGen: (params: SortKeyGenProperties) => SortKey,
+	pkFunction: (params: PKFunctionProperties) => PK,
+	skFunction: (params: SKFunctionProperties) => SK,
 	index?: string
 ) => {
-	const keyOf = (params: NonNullable<PartitionKeyGenProperties & SortKeyGenProperties>) => ({
-		...partitionKeyGen(params),
-		...sortKeyGen(params)
+	const keyOf = (params: NonNullable<PKFunctionProperties & SKFunctionProperties>) => ({
+		...pkFunction(params),
+		...skFunction(params)
 	});
 
-	const one = (params: NonNullable<PartitionKeyGenProperties & SortKeyGenProperties>): Promise<InstanceType<Item>> => {
+	const one = (params: NonNullable<PKFunctionProperties & SKFunctionProperties>): Promise<InstanceType<Item>> => {
 		const keyObject = keyOf(params);
 
-		const [partitionKey, sortKey] = Object.keys(keyObject);
+		const [pk, sk] = Object.keys(keyObject);
 
 		return !index
 			? Item.db.get({ Key: keyObject }).then(data => new Item(data))
@@ -50,10 +50,10 @@ export const get = <
 					.query({
 						IndexName: index,
 						Limit: 1,
-						KeyConditionExpression: `${partitionKey} = :${partitionKey} AND ${sortKey} = :${sortKey}`,
+						KeyConditionExpression: `${pk} = :${pk} AND ${sk} = :${sk}`,
 						ExpressionAttributeValues: {
-							[`:${partitionKey}`]: keyObject[partitionKey],
-							[`:${sortKey}`]: keyObject[sortKey]
+							[`:${pk}`]: keyObject[pk],
+							[`:${sk}`]: keyObject[sk]
 						}
 					})
 					.then(data => {
@@ -65,13 +65,13 @@ export const get = <
 					});
 	};
 
-	const partitionKeyMaker = (query: PartitionKeyGenProperties) => {
-		const partitionKeyObject = partitionKeyGen(query);
-		const [[partitionKey, partitionKeyValue]] = Object.entries(partitionKeyObject);
+	const pkMaker = (query: PKFunctionProperties) => {
+		const pkObject = pkFunction(query);
+		const [[pk, pkValue]] = Object.entries(pkObject);
 
 		return {
-			partitionKey,
-			partitionKeyValue
+			pk,
+			pkValue
 		};
 	};
 
@@ -89,58 +89,58 @@ export const get = <
 	};
 
 	const someRange = async (
-		query: ItemListQuery & PartitionKeyGenProperties & ItemListRangeQuery<SortKeyGenProperties>
+		query: ItemListQuery & PKFunctionProperties & ItemListRangeQuery<SKFunctionProperties>
 	): Promise<ItemList<InstanceType<Item>>> => {
-		const { partitionKey, partitionKeyValue } = partitionKeyMaker(query);
+		const { pk, pkValue } = pkMaker(query);
 
-		const sortKeyMinObject = sortKeyGen(query.min);
-		const sortKeyMaxObject = sortKeyGen(query.max);
-		const sortKey = Object.keys(sortKeyMinObject)[0];
+		const skMinObject = skFunction(query.min);
+		const skMaxObject = skFunction(query.max);
+		const sk = Object.keys(skMinObject)[0];
 
 		return Item.db
 			.query({
 				...listQueryParams(query),
-				KeyConditionExpression: `${partitionKey} = :${partitionKey} AND ${sortKey} BETWEEN :min AND :max`,
+				KeyConditionExpression: `${pk} = :${pk} AND ${sk} BETWEEN :min AND :max`,
 				ExpressionAttributeValues: {
-					[`:${partitionKey}`]: partitionKeyValue,
-					':min': sortKeyMinObject[sortKey],
-					':max': sortKeyMaxObject[sortKey]
+					[`:${pk}`]: pkValue,
+					':min': skMinObject[sk],
+					':max': skMaxObject[sk]
 				}
 			})
 			.then(listMaker);
 	};
 
 	const somePrefix =
-		<SortKeyPrefixGenProperties>(sortKeyPrefixFn: (params: SortKeyPrefixGenProperties) => any) =>
+		<SKPrefixGenProperties>(skPrefixFn: (params: SKPrefixGenProperties) => any) =>
 		async (
-			query: ItemListQuery & PartitionKeyGenProperties & SortKeyPrefixGenProperties
+			query: ItemListQuery & PKFunctionProperties & SKPrefixGenProperties
 		): Promise<ItemList<InstanceType<Item>>> => {
-			const { partitionKey, partitionKeyValue } = partitionKeyMaker(query);
+			const { pk, pkValue } = pkMaker(query);
 
-			const sortKeyObject = sortKeyPrefixFn(query);
-			const [[sortKey, sortKeyValue]] = Object.entries(sortKeyObject);
+			const skObject = skPrefixFn(query);
+			const [[sk, skValue]] = Object.entries(skObject);
 
 			return Item.db
 				.query({
 					...listQueryParams(query),
-					KeyConditionExpression: `${partitionKey} = :${partitionKey} AND ${sortKey} = :${sortKey}`,
+					KeyConditionExpression: `${pk} = :${pk} AND ${sk} = :${sk}`,
 					ExpressionAttributeValues: {
-						[`:${partitionKey}`]: partitionKeyValue,
-						[`:${sortKey}`]: sortKeyValue
+						[`:${pk}`]: pkValue,
+						[`:${sk}`]: skValue
 					}
 				})
 				.then(listMaker);
 		};
 
-	const some = async (query: ItemListQuery & PartitionKeyGenProperties): Promise<ItemList<InstanceType<Item>>> => {
-		const { partitionKey, partitionKeyValue } = partitionKeyMaker(query);
+	const some = async (query: ItemListQuery & PKFunctionProperties): Promise<ItemList<InstanceType<Item>>> => {
+		const { pk, pkValue } = pkMaker(query);
 
 		return Item.db
 			.query({
 				...listQueryParams(query),
-				KeyConditionExpression: `${partitionKey} = :${partitionKey}`,
+				KeyConditionExpression: `${pk} = :${pk}`,
 				ExpressionAttributeValues: {
-					[`:${partitionKey}`]: partitionKeyValue
+					[`:${pk}`]: pkValue
 				}
 			})
 			.then(listMaker);
@@ -168,8 +168,8 @@ export const get = <
 
 	const allRange = allCustom(someRange);
 
-	const allPrefix = <SortKeyPrefixGenProperties>(sortKeyPrefixFn: (params: SortKeyPrefixGenProperties) => any) =>
-		allCustom(somePrefix(sortKeyPrefixFn));
+	const allPrefix = <SKPrefixGenProperties>(skPrefixFn: (params: SKPrefixGenProperties) => any) =>
+		allCustom(somePrefix(skPrefixFn));
 
 	const all = allCustom(some);
 
