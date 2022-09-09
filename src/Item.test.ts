@@ -28,7 +28,7 @@ interface ITestItem {
 class TestItem extends Item<IKey, ITestItem> {
 	static db = db;
 
-	static keyGen = {
+	static key = {
 		pk: () => ({ pk: 'TestItem' }),
 		sk: (props: Pick<ITestItem, 'testAttribute'>) => ({ sk: props.testAttribute })
 	};
