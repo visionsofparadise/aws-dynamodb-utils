@@ -27,7 +27,7 @@ export const get = <
 	PKFunctionProperties,
 	SKFunctionProperties,
 	PK extends { [x: string]: string },
-	SK extends { [x: string]: string }
+	SK extends { [x: string]: string | undefined }
 >(
 	Item: Item,
 	pkFunction: (params: PKFunctionProperties) => PK,
@@ -43,6 +43,8 @@ export const get = <
 		const keyObject = keyOf(params);
 
 		const [pk, sk] = Object.keys(keyObject);
+
+		if (!keyObject[sk]) throw new Error('Not Found');
 
 		return !index
 			? Item.db.get({ Key: keyObject }).then(data => new Item(data))
